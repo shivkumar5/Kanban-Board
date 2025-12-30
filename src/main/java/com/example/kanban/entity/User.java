@@ -6,12 +6,14 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.util.List;
+
 @Entity
 @Table(name = "users")
 @Getter @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-public class User {
+public class User extends BaseDateEntity {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
@@ -19,4 +21,9 @@ public class User {
     private  String name;
     @Column(unique = true,nullable = false)
     private  String email;
+
+    @OneToMany(mappedBy = "user",cascade = CascadeType.ALL)
+    private List<Sprint> sprints;
+    
 }
+
