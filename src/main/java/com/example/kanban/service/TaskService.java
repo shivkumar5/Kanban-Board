@@ -17,6 +17,7 @@ import tools.jackson.databind.ObjectMapper;
 
 import org.springframework.stereotype.Service;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
@@ -112,6 +113,17 @@ public class TaskService {
         return taskRepository.save(updatedTask);
     }
 
+
+    public List<Task> getTasksBySprint (UUID sprintId) {
+        Sprint sprint = fetchSprint(sprintId);
+        return taskRepository.findBySprint(sprint);
+    }
+
+    public List<Task> getTasksByUser (UUID userId) {
+        User user = fetchUser(userId);
+        return taskRepository.findByUser(user);
+    }
+    
     // --- Private Helper Methods to avoid repetition ---
 
     private Task findTask(UUID id) {
