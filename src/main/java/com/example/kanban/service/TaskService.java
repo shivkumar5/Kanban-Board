@@ -15,6 +15,13 @@ import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
 import tools.jackson.databind.ObjectMapper;
 
+import org.springframework.beans.factory.BeanRegistry.Spec;
+
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.web.PageableDefault;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -113,6 +120,22 @@ public class TaskService {
         return taskRepository.save(updatedTask);
     }
 
+    public Page<Task> getTasks(String title, UUID statusId, Pageable pageable) {
+    Specification<Task> spec = (root, query, cb) -> cb.conjunction();
+
+    if (title != null) {
+        spec = spec.and((root, query, cb) -> 
+            cb.like(cb.lower(root.get("title")), "%" + title.toLowerCase() + "%"));
+    }
+
+    if (statusId != null) {
+        spec = spec.and((root, query, cb) -> 
+            cb.equal(root.get("status").get("id"), statusId));
+    }
+
+    // findAll returns a Page object which includes total elements, total pages, and the current slice
+    return taskRepository.findAll(spec, pageable);
+}
 
     public List<Task> getTasksBySprint (UUID sprintId) {
         Sprint sprint = fetchSprint(sprintId);
@@ -123,7 +146,7 @@ public class TaskService {
         User user = fetchUser(userId);
         return taskRepository.findByUser(user);
     }
-    
+
     // --- Private Helper Methods to avoid repetition ---
 
     private Task findTask(UUID id) {
