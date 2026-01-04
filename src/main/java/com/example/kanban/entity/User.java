@@ -1,10 +1,8 @@
 package com.example.kanban.entity;
 
 import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Getter;
-import lombok.NoArgsConstructor;
-import lombok.Setter;
+import lombok.*;
+import lombok.experimental.SuperBuilder;
 
 import java.util.List;
 
@@ -13,10 +11,11 @@ import java.util.List;
 @Getter @Setter
 @NoArgsConstructor
 @AllArgsConstructor
+@SuperBuilder(toBuilder = true)
+@ToString(callSuper = true) // Explicitly tell it to include parent fields
+@EqualsAndHashCode(callSuper = true) // Explicitly tell it to include parent fields
 public class User extends BaseDateEntity {
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+
     @Column(nullable = false)
     private  String name;
     @Column(unique = true,nullable = false)
@@ -24,6 +23,6 @@ public class User extends BaseDateEntity {
 
     @OneToMany(mappedBy = "user",cascade = CascadeType.ALL)
     private List<Sprint> sprints;
-    
+
 }
 

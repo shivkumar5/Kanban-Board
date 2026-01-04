@@ -5,6 +5,8 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.*;
 import lombok.*;
+import lombok.experimental.SuperBuilder;
+
 import java.time.LocalDate;
 
 @Entity
@@ -12,12 +14,10 @@ import java.time.LocalDate;
 @Getter @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-@Builder(toBuilder = true)
+@SuperBuilder(toBuilder = true)
+@ToString(callSuper = true) // Explicitly tell it to include parent fields
+@EqualsAndHashCode(callSuper = true) // Explicitly tell it to include parent fields
 public class Task extends FullAuditEntity {
-
-    @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
 
     @Column(nullable = false)
     private String title;

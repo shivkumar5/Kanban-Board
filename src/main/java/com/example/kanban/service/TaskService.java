@@ -10,28 +10,26 @@ import com.example.kanban.repository.StatusRepository;
 import com.example.kanban.repository.TaskRepository;
 import com.example.kanban.repository.UserRepository;
 import com.example.kanban.service.validation.TaskValidator;
-import com.fasterxml.jackson.core.JsonProcessingException;
+
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
+import tools.jackson.databind.ObjectMapper;
+
 import org.springframework.stereotype.Service;
-import com.github.fge.jsonpatch.JsonPatch;
-import com.github.fge.jsonpatch.JsonPatchException;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
 
-
+import java.util.Map;
 import java.util.Optional;
+import java.util.UUID;
 
 @RequiredArgsConstructor
 @Service
 public class TaskService {
-   private  final TaskRepository taskRepository;
-    private  final UserRepository userRepository;
-    private  final SprintRepository sprintRepository;
-    private  final StatusRepository statusRepository;
-    private final ObjectMapper objectMapper;
+    private final TaskRepository taskRepository;
+    private final UserRepository userRepository;
+    private final SprintRepository sprintRepository;
+    private final StatusRepository statusRepository;
     private final TaskValidator taskValidator;
-
+    private final ObjectMapper objectMapper;
 
     public Task createTask(TaskDTO taskDTO) {
         // 1. Validate and fetch entities first
@@ -49,7 +47,8 @@ public class TaskService {
         Sprint sprint = null;
         if (taskDTO.getSprintId() != null) {
             sprint = sprintRepository.findById(taskDTO.getSprintId())
-                    .orElseThrow(() -> new EntityNotFoundException("Sprint not found with ID: " + taskDTO.getSprintId()));
+                    .orElseThrow(
+                            () -> new EntityNotFoundException("Sprint not found with ID: " + taskDTO.getSprintId()));
         }
 
         // 2. Build the object in one atomic step
@@ -65,65 +64,73 @@ public class TaskService {
         return taskRepository.save(task);
     }
 
-        // PUT: Full Update (Replacement)
-        public Task updateTask(Long taskId, TaskDTO taskDTO) {
-            Task existingTask = findTask(taskId);
+    // PUT: Full Update (Replacement)
+    public Task updateTask(UUID taskId, TaskDTO taskDTO) {
+        Task existingTask = findTask(taskId);
 
-            // We replace everything. If DTO fields are null, the DB becomes null.
-            Task updatedTask = existingTask.toBuilder()
-                    .title(taskDTO.getTitle())
-                    .description(taskDTO.getDescription())
-                    .dueDate(taskDTO.getDueDate())
-                    .user(taskDTO.getUserId() != null ? fetchUser(taskDTO.getUserId()) : null)
-                    .status(taskDTO.getStatusId() != null ? fetchStatus(taskDTO.getStatusId()) : null)
-                    .sprint(taskDTO.getSprintId() != null ? fetchSprint(taskDTO.getSprintId()) : null)
-                    .build();
+        // We replace everything. If DTO fields are null, the DB becomes null.
+        Task updatedTask = existingTask.toBuilder()
+                .title(taskDTO.getTitle())
+                .description(taskDTO.getDescription())
+                .dueDate(taskDTO.getDueDate())
+                .user(taskDTO.getUserId() != null ? fetchUser(taskDTO.getUserId()) : null)
+                .status(taskDTO.getStatusId() != null ? fetchStatus(taskDTO.getStatusId()) : null)
+                .sprint(taskDTO.getSprintId() != null ? fetchSprint(taskDTO.getSprintId()) : null)
+                .build();
 
-            return taskRepository.save(updatedTask);
-        }
-
-        // PATCH: Partial Update (Selective)
-        public Task patchTask(Long taskId, JsonPatch patch) {
-            Task existingTask = taskRepository.findById(taskId)
-                    .orElseThrow(() -> new EntityNotFoundException("Task not found"));
-
-            try {
-                // Apply the patch
-                JsonNode target = objectMapper.convertValue(existingTask, JsonNode.class);
-                JsonNode patched = patch.apply(target);
-                Task updatedTask = objectMapper.treeToValue(patched, Task.class);
-
-                // Validate the patched object before touching the DB
-                taskValidator.validate(updatedTask);
-
-                return taskRepository.save(updatedTask);
-
-            } catch (JsonPatchException | JsonProcessingException e) {
-                throw new RuntimeException("Invalid Patch Operation", e);
-            }
-        }
-
-        // --- Private Helper Methods to avoid repetition ---
-
-        private Task findTask(Long id) {
-            return taskRepository.findById(id)
-                    .orElseThrow(() -> new EntityNotFoundException("Task not found with ID: " + id));
-        }
-
-        private User fetchUser(Long id) {
-            return userRepository.findById(id)
-                    .orElseThrow(() -> new EntityNotFoundException("User not found: " + id));
-        }
-
-        private Status fetchStatus(Long id) {
-            return statusRepository.findById(id)
-                    .orElseThrow(() -> new EntityNotFoundException("Status not found: " + id));
-        }
-
-        private Sprint fetchSprint(Long id) {
-            return sprintRepository.findById(id)
-                    .orElseThrow(() -> new EntityNotFoundException("Sprint not found: " + id));
-        }
+        return taskRepository.save(updatedTask);
     }
 
+    // PATCH: Partial Update (Selective)
+    public Task patchTask(UUID taskId, Map<String, Object> updates) {
+        // 1. Find the existing record
+        Task existingTask = taskRepository.findById(taskId)
+                .orElseThrow(() -> new EntityNotFoundException("Task not found"));
 
+        // 2. Convert the existing entity to a Map
+        // This allows us to "merge" the incoming changes into it
+        Map<String, Object> existingMap = objectMapper.convertValue(existingTask, Map.class);
+
+        // 3. Apply the updates from the request onto the existing map
+        updates.forEach(existingMap::put);
+
+        // 4. Convert the merged map back into a Task object
+        Task updatedTask = objectMapper.convertValue(existingMap, Task.class);
+
+        // 5. Important: Because convertValue doesn't fetch real DB objects (User,
+        // Status),
+        // we need to re-verify relationships if they were part of the update.
+        if (updates.containsKey("userId")) {
+            updatedTask.setUser(fetchUser(UUID.fromString(updates.get("userId").toString())));
+        }
+        if (updates.containsKey("statusId")) {
+            updatedTask.setStatus(fetchStatus(UUID.fromString(updates.get("statusId").toString())));
+        }
+
+        // 6. Validate and save
+        taskValidator.validate(updatedTask);
+        return taskRepository.save(updatedTask);
+    }
+
+    // --- Private Helper Methods to avoid repetition ---
+
+    private Task findTask(UUID id) {
+        return taskRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Task not found with ID: " + id));
+    }
+
+    private User fetchUser(UUID id) {
+        return userRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("User not found: " + id));
+    }
+
+    private Status fetchStatus(UUID id) {
+        return statusRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Status not found: " + id));
+    }
+
+    private Sprint fetchSprint(UUID id) {
+        return sprintRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Sprint not found: " + id));
+    }
+}

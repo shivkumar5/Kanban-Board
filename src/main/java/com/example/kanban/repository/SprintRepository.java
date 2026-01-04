@@ -4,5 +4,7 @@ import com.example.kanban.dto.SprintDTO;
 import com.example.kanban.entity.Sprint;
 import org.springframework.data.jpa.repository.JpaRepository;
 
-public interface SprintRepository extends JpaRepository<Sprint,Long> {
+import java.util.UUID;
+
+public interface SprintRepository extends JpaRepository<Sprint, UUID> {
 }
