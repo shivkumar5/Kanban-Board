@@ -29,4 +29,37 @@ public class SprintService {
         sprint.setUser(user);
         return  sprintRepository.save(sprint);
     }
+
+    public Iterable<Sprint> getAllSprints() {
+        return sprintRepository.findAll();
+    }
+
+    public Sprint getSprintById(java.util.UUID sprintId) {
+        return sprintRepository.findById(sprintId)
+                .orElseThrow(() -> new RuntimeException("Sprint not found!"));
+    }
+
+    public Sprint updateSprint(java.util.UUID sprintId, SprintDTO sprintDTO) {
+        Sprint sprint = sprintRepository.findById(sprintId)
+                .orElseThrow(() -> new RuntimeException("Sprint not found!"));
+        sprint.setName(sprintDTO.getName());
+        return sprintRepository.save(sprint);
+    }
+    
+
+    public Sprint patchSprint(java.util.UUID sprintId, java.util.Map<String, Object> updates) {
+        Sprint existingSprint = sprintRepository.findById(sprintId)
+                .orElseThrow(() -> new RuntimeException("Sprint not found!"));
+
+        updates.forEach((key, value) -> {
+            switch (key) {
+                case "name" -> existingSprint.setName((String) value);
+                case "startDate" -> existingSprint.setStartDate((Date) value);
+                case "endDate" -> existingSprint.setEndDate((Date) value);
+            }
+        });
+
+        return sprintRepository.save(existingSprint);
+    }
+
 }

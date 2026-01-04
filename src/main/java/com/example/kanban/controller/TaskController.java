@@ -23,13 +23,13 @@ public class TaskController {
     }
 
     @PutMapping("/{id}")
-    public  ResponseEntity<Task> updateTask(@PathVariable UUID taskId, @RequestBody TaskDTO taskDTO) {
+    public ResponseEntity<Task> updateTask(@PathVariable UUID taskId, @RequestBody TaskDTO taskDTO) {
         return ResponseEntity.ok(taskService.updateTask(taskId, taskDTO));
     }
 
-   @PatchMapping("/{id}")
-public ResponseEntity<Task> patchTask(@PathVariable UUID id, @RequestBody Map<String, Object> updates) {
-    return ResponseEntity.ok(taskService.patchTask(id, updates));
-}
+    @PatchMapping("/{id}")
+    public ResponseEntity<Task> patchTask(@PathVariable UUID id, @RequestBody Map<String, Object> updates) {
+        return ResponseEntity.ok(taskService.patchTask(id, updates));
+    }
 
 }

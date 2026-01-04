@@ -23,4 +23,5 @@ public class StatusService {
     public List<Status> getAllStatus() {
         return  statusRepository.findAll();
     }
+    
 }

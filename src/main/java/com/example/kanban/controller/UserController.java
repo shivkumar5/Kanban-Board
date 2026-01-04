@@ -29,9 +29,18 @@ public class UserController {
         return userService.getAllUsers();
     }
 
-    @GetMapping("/ping")
-    public String ping() {
-        logger.info("--- THE PROGRAM REACHED THE CONTROLLER ---");
-        return "Pong!";
+    @GetMapping("/{userId}")
+    public ResponseEntity<User> getUserById(@PathVariable java.util.UUID userId) {
+        return ResponseEntity.ok(userService.getUserById(userId));
+    }
+
+    @PutMapping("/{userId}")
+    public ResponseEntity<User> updateUser(@PathVariable java.util.UUID userId, @RequestBody UserDTO userDTO) {
+        return ResponseEntity.ok(userService.updateUser(userId, userDTO));
+    }
+
+    @PatchMapping("/{userId}")
+    public ResponseEntity<User> patchUser(@PathVariable java.util.UUID userId, @RequestBody java.util.Map<String, Object> updates) {
+        return ResponseEntity.ok(userService.patchUser(userId, updates));
     }
 }
