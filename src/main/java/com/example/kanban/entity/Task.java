@@ -9,6 +9,8 @@ import lombok.experimental.SuperBuilder;
 
 import java.time.LocalDate;
 
+import org.hibernate.annotations.SoftDelete;
+
 @Entity
 @Table(name = "tasks")
 @Getter @Setter
@@ -17,6 +19,7 @@ import java.time.LocalDate;
 @SuperBuilder(toBuilder = true)
 @ToString(callSuper = true) // Explicitly tell it to include parent fields
 @EqualsAndHashCode(callSuper = true) // Explicitly tell it to include parent fields
+@SoftDelete(columnName = "is_deleted")
 public class Task extends FullAuditEntity {
 
     @Column(nullable = false)

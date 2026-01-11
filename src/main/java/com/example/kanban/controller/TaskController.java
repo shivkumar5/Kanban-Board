@@ -13,6 +13,7 @@ import org.springframework.data.domain.Sort;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
@@ -51,6 +52,17 @@ public class TaskController {
     @PatchMapping("/{id}")
     public ResponseEntity<Task> patchTask(@PathVariable UUID id, @RequestBody Map<String, Object> updates) {
         return ResponseEntity.ok(taskService.patchTask(id, updates));
+    }
+
+    @GetMapping("/trash")
+    public ResponseEntity<List<Task>> getTrash() {
+        return ResponseEntity.ok(taskService.getDeletedTasks());
+    }
+
+    @PutMapping("/{id}/restore")
+    public ResponseEntity<Void> restore(@PathVariable UUID id) {
+        taskService.restoreTask(id);
+        return ResponseEntity.noContent().build();
     }
 
 }

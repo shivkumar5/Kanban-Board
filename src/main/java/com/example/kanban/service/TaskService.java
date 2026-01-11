@@ -136,14 +136,15 @@ public class TaskService {
         taskValidator.validate(updatedTask);
 
         Task savedTask = taskRepository.save(updatedTask);
-        if(savedTask.getStatus() != null && !savedTask.getStatus().getName().equals(existingTask.getStatus().getName())) {
-           eventPublisher.publishEvent(new TaskStatusEvent(
-                savedTask.getId(),
-                existingTask.getStatus().getName(),   // oldStatus
-                savedTask.getStatus().getName(),     // newStatus
-                savedTask.getTitle(),                // taskTitle
-                savedTask.getUser()                  // updatedBy
-        ));
+        if (savedTask.getStatus() != null
+                && !savedTask.getStatus().getName().equals(existingTask.getStatus().getName())) {
+            eventPublisher.publishEvent(new TaskStatusEvent(
+                    savedTask.getId(),
+                    existingTask.getStatus().getName(), // oldStatus
+                    savedTask.getStatus().getName(), // newStatus
+                    savedTask.getTitle(), // taskTitle
+                    savedTask.getUser() // updatedBy
+            ));
         }
 
         return savedTask;
@@ -175,6 +176,40 @@ public class TaskService {
         return taskRepository.findByUser(user);
     }
 
+    public void deleteTask(UUID taskId) {
+        Task task = taskRepository.findById(taskId)
+                .orElseThrow(() -> new EntityNotFoundException("Task not found"));
+
+        taskRepository.delete(task); // This triggers the @SQLDelete update
+
+        // Fire an event so our listener captures the "Delete" in ActivityLog
+        eventPublisher.publishEvent(new TaskStatusEvent(
+                task.getId(),
+                task.getTitle(),
+                task.getStatus().getName(),
+                "DELETED",
+                task.getUser()));
+    }
+
+    public void restoreTask(UUID id) {
+        // We check if it exists in the 'trash' first
+        taskRepository.restoreById(id);
+
+        // Fire an event to log that it was restored!
+        Task restoredTask = taskRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Could not verify restoration"));
+
+        eventPublisher.publishEvent(new TaskStatusEvent(
+                restoredTask.getId(),
+                restoredTask.getTitle(),
+                "DELETED",
+                restoredTask.getStatus().getName(),
+                null));
+    }
+    
+    public List<Task> getDeletedTasks() {
+        return taskRepository.findAllDeleted();
+    }
     // --- Private Helper Methods to avoid repetition ---
 
     private Task findTask(UUID id) {
