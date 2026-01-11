@@ -13,14 +13,10 @@ import com.example.kanban.service.validation.TaskValidator;
 
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
-import tools.jackson.databind.ObjectMapper;
-
-import org.springframework.beans.factory.BeanRegistry.Spec;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.domain.Sort;
-import org.springframework.data.web.PageableDefault;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 

@@ -10,22 +10,27 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 
 import java.util.Map;
 import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/v1/task")
+@Tag(name = "Tasks", description = "APIs for managing tasks")
 public class TaskController {
 
     @Autowired
     TaskService taskService;
 
+    @Operation(summary = "Create task", description = "Create a new task with provided details")
     @PostMapping
     public ResponseEntity<Task> createTask(@RequestBody TaskDTO taskDTO) {
         return ResponseEntity.ok(taskService.createTask(taskDTO));
     }
 
+    @Operation(summary = "List tasks", description = "Get paginated list of tasks with optional filters")
     @GetMapping
     public ResponseEntity<Page<Task>> getAllTasks(
             @RequestParam(required = false) String title,
@@ -36,11 +41,13 @@ public class TaskController {
         return ResponseEntity.ok(taskService.getTasks(title, statusId, pageable));
     }
 
+    @Operation(summary = "Update task", description = "Full replace an existing task by ID")
     @PutMapping("/{id}")
     public ResponseEntity<Task> updateTask(@PathVariable UUID taskId, @RequestBody TaskDTO taskDTO) {
         return ResponseEntity.ok(taskService.updateTask(taskId, taskDTO));
     }
 
+    @Operation(summary = "Patch task", description = "Partially update task fields")
     @PatchMapping("/{id}")
     public ResponseEntity<Task> patchTask(@PathVariable UUID id, @RequestBody Map<String, Object> updates) {
         return ResponseEntity.ok(taskService.patchTask(id, updates));
