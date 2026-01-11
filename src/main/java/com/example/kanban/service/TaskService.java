@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
+import java.util.logging.Logger;
 
 @RequiredArgsConstructor
 @Service
@@ -37,17 +38,24 @@ public class TaskService {
 
     public Task createTask(TaskDTO taskDTO) {
         // 1. Validate and fetch entities first
-        // We use .map() to onlsy query the DB if the ID is not null
-        User user = Optional.ofNullable(taskDTO.getUserId())
-                .flatMap(userRepository::findById)
-                .orElseThrow(() -> new EntityNotFoundException("Valid User ID is required"));
+        User user = null;
+        if (taskDTO.getUserId() != null) {
+            user = userRepository.findById(taskDTO.getUserId())
+                    .orElseThrow(() -> new EntityNotFoundException("User not found with ID: " + taskDTO.getUserId()));
+        }
 
-        Status status = Optional.ofNullable(taskDTO.getStatusId())
-                .flatMap(statusRepository::findById)
-                .orElseThrow(() -> new EntityNotFoundException("Valid Status ID is required"));
+        // 2. Handle Status with Default Logic
+        Status status;
+        if (taskDTO.getStatusId() == null) {
+            // Fetch the default "To Do" status.
+            // Ensure "To Do" exists in your DB as the first in the chain.
+            status = statusRepository.findByName("To Do")
+                    .orElseThrow(() -> new EntityNotFoundException("Default status 'To Do' not found in database"));
+        } else {
+            status = statusRepository.findById(taskDTO.getStatusId())
+                    .orElseThrow(() -> new EntityNotFoundException("Valid Status ID is required"));
+        }
 
-        // Sprint is often optional (task can be in the backlog)
-        // But IF an ID is provided, it MUST exist.
         Sprint sprint = null;
         if (taskDTO.getSprintId() != null) {
             sprint = sprintRepository.findById(taskDTO.getSprintId())
@@ -108,8 +116,16 @@ public class TaskService {
             updatedTask.setUser(fetchUser(UUID.fromString(updates.get("userId").toString())));
         }
         if (updates.containsKey("statusId")) {
-            updatedTask.setStatus(fetchStatus(UUID.fromString(updates.get("statusId").toString())));
+            UUID newStatusId = UUID.fromString(updates.get("statusId").toString());
+            Logger.getLogger(TaskService.class.getName()).info("Patching Task Status to ID: " + newStatusId);
+            Status newStatus = statusRepository.findById(newStatusId)
+                    .orElseThrow(() -> new EntityNotFoundException("Status not found: " + newStatusId));
+            // Validate status transition
+            taskValidator.validateTransition(existingTask, newStatus);
+            updatedTask.setStatus(newStatus);
         }
+
+        Logger.getLogger(TaskService.class.getName()).info("Patched Task: " + updatedTask);
 
         // 6. Validate and save
         taskValidator.validate(updatedTask);
@@ -117,28 +133,27 @@ public class TaskService {
     }
 
     public Page<Task> getTasks(String title, UUID statusId, Pageable pageable) {
-    Specification<Task> spec = (root, query, cb) -> cb.conjunction();
+        Specification<Task> spec = (root, query, cb) -> cb.conjunction();
 
-    if (title != null) {
-        spec = spec.and((root, query, cb) -> 
-            cb.like(cb.lower(root.get("title")), "%" + title.toLowerCase() + "%"));
+        if (title != null) {
+            spec = spec.and((root, query, cb) -> cb.like(cb.lower(root.get("title")), "%" + title.toLowerCase() + "%"));
+        }
+
+        if (statusId != null) {
+            spec = spec.and((root, query, cb) -> cb.equal(root.get("status").get("id"), statusId));
+        }
+
+        // findAll returns a Page object which includes total elements, total pages, and
+        // the current slice
+        return taskRepository.findAll(spec, pageable);
     }
 
-    if (statusId != null) {
-        spec = spec.and((root, query, cb) -> 
-            cb.equal(root.get("status").get("id"), statusId));
-    }
-
-    // findAll returns a Page object which includes total elements, total pages, and the current slice
-    return taskRepository.findAll(spec, pageable);
-}
-
-    public List<Task> getTasksBySprint (UUID sprintId) {
+    public List<Task> getTasksBySprint(UUID sprintId) {
         Sprint sprint = fetchSprint(sprintId);
         return taskRepository.findBySprint(sprint);
     }
 
-    public List<Task> getTasksByUser (UUID userId) {
+    public List<Task> getTasksByUser(UUID userId) {
         User user = fetchUser(userId);
         return taskRepository.findByUser(user);
     }

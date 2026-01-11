@@ -1,11 +1,19 @@
 package com.example.kanban.service.validation;
 
+import com.example.kanban.entity.Status;
+import com.example.kanban.entity.StatusTransitionId;
 import com.example.kanban.entity.Task;
+import com.example.kanban.exception.BusinessRuleViolationException;
 import com.example.kanban.repository.SprintRepository;
 import com.example.kanban.repository.StatusRepository;
+import com.example.kanban.repository.StatusTransitionRepository;
 import com.example.kanban.repository.UserRepository;
 import jakarta.persistence.EntityNotFoundException;
 import lombok.RequiredArgsConstructor;
+
+import java.util.UUID;
+import java.util.logging.Logger;
+
 import org.springframework.stereotype.Component;
 
 @Component
@@ -15,6 +23,7 @@ public class TaskValidator {
     private final UserRepository userRepository;
     private final StatusRepository statusRepository;
     private final SprintRepository sprintRepository;
+    private final StatusTransitionRepository statusTransitionRepository;
 
     public void validate(Task task) {
         // 1. Validate User
@@ -25,6 +34,7 @@ public class TaskValidator {
         }
 
         // 2. Validate Status (Required field for Kanban)
+        Logger.getLogger(TaskValidator.class.getName()).info("Validating Task Status with ID: " + (task.getStatus() != null ? task.getStatus().getId() : "null"));
         if (task.getStatus() == null || task.getStatus().getId() == null) {
             throw new IllegalArgumentException("Task must have a valid Status");
         } else if (!statusRepository.existsById(task.getStatus().getId())) {
@@ -36,6 +46,27 @@ public class TaskValidator {
             if (!sprintRepository.existsById(task.getSprint().getId())) {
                 throw new EntityNotFoundException("Sprint not found with ID: " + task.getSprint().getId());
             }
+        }
+    }
+
+    public void validateTransition(Task existingTask, Status targetStatus) {
+        UUID currentStatusId = existingTask.getStatus().getId();
+        UUID targetStatusId = targetStatus.getId();
+
+        // If status hasn't changed, no transition check is needed
+        if (currentStatusId.equals(targetStatusId)) {
+            return;
+        }
+
+        StatusTransitionId statusTransitionId = new StatusTransitionId(currentStatusId, targetStatusId);
+
+        // Standard JpaRepository method correctly handles the @EmbeddedId object
+        boolean isValidTransition = statusTransitionRepository.existsById(statusTransitionId);
+
+        if (!isValidTransition) {
+            throw new BusinessRuleViolationException(
+                    String.format("Transition from %s to %s is not allowed.",
+                            existingTask.getStatus().getName(), targetStatus.getName()));
         }
     }
 }
