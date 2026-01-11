@@ -102,39 +102,74 @@ public class TaskService {
     // PATCH: Partial Update (Selective)
     @Transactional
     public Task patchTask(UUID taskId, Map<String, Object> updates) {
-        // 1. Find the existing record
-        Task existingTask = taskRepository.findById(taskId)
-                .orElseThrow(() -> new EntityNotFoundException("Task not found"));
+        // 1. Find the existing record (check if soft-deleted first)
+        Task existingTask = taskRepository.findById(taskId).orElse(null);
+        
+        // If not found, check if it's soft-deleted
+        if (existingTask == null) {
+            Task deletedTask = taskRepository.findByIdIncludingDeleted(taskId);
+            if (deletedTask != null) {
+                throw new EntityNotFoundException("Task is soft-deleted. Please restore it first using PUT /api/v1/task/{id}/restore");
+            }
+            throw new EntityNotFoundException("Task not found with ID: " + taskId);
+        }
 
         // 2. Convert the existing entity to a Map
         // This allows us to "merge" the incoming changes into it
         Map<String, Object> existingMap = objectMapper.convertValue(existingTask, Map.class);
 
-        // 3. Apply the updates from the request onto the existing map
+        // 3. Extract relationship fields before merging (they need special handling)
+        // Remove from both maps to avoid deserialization issues
+        Object userIdUpdate = updates.remove("userId");
+        Object statusIdUpdate = updates.remove("statusId");
+        Object sprintIdUpdate = updates.remove("sprintId");
+        
+        // Also remove from existingMap (they're UUID strings from serialization)
+        existingMap.remove("userId");
+        existingMap.remove("statusId");
+        existingMap.remove("sprintId");
+
+        // 4. Apply the remaining updates from the request onto the existing map
         updates.forEach(existingMap::put);
 
-        // 4. Convert the merged map back into a Task object
+        // 5. Convert the merged map back into a Task object
+        // Note: Relationship fields are excluded to avoid deserialization issues
         Task updatedTask = objectMapper.convertValue(existingMap, Task.class);
 
-        // 5. Important: Because convertValue doesn't fetch real DB objects (User,
-        // Status),
-        // we need to re-verify relationships if they were part of the update.
-        if (updates.containsKey("userId")) {
-            updatedTask.setUser(fetchUser(UUID.fromString(updates.get("userId").toString())));
+        // 6. Handle relationship fields separately (they need to be fetched from DB)
+        // If updated, use the new value; otherwise preserve existing relationships
+        if (userIdUpdate != null) {
+            UUID userId = UUID.fromString(userIdUpdate.toString());
+            updatedTask.setUser(fetchUser(userId));
+        } else {
+            // Preserve existing user relationship
+            updatedTask.setUser(existingTask.getUser());
         }
-        if (updates.containsKey("statusId")) {
-            UUID newStatusId = UUID.fromString(updates.get("statusId").toString());
+        
+        if (statusIdUpdate != null) {
+            UUID newStatusId = UUID.fromString(statusIdUpdate.toString());
             Logger.getLogger(TaskService.class.getName()).info("Patching Task Status to ID: " + newStatusId);
             Status newStatus = statusRepository.findById(newStatusId)
                     .orElseThrow(() -> new EntityNotFoundException("Status not found: " + newStatusId));
             // Validate status transition
             taskValidator.validateTransition(existingTask, newStatus);
             updatedTask.setStatus(newStatus);
+        } else {
+            // Preserve existing status relationship
+            updatedTask.setStatus(existingTask.getStatus());
+        }
+        
+        if (sprintIdUpdate != null) {
+            UUID sprintId = UUID.fromString(sprintIdUpdate.toString());
+            updatedTask.setSprint(fetchSprint(sprintId));
+        } else {
+            // Preserve existing sprint relationship
+            updatedTask.setSprint(existingTask.getSprint());
         }
 
         Logger.getLogger(TaskService.class.getName()).info("Patched Task: " + updatedTask);
 
-        // 6. Validate and save
+        // 7. Validate and save
         taskValidator.validate(updatedTask);
 
         Task savedTask = taskRepository.save(updatedTask);

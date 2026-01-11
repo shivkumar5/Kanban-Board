@@ -25,4 +25,8 @@ public interface TaskRepository  extends JpaRepository<Task, UUID> , JpaSpecific
     @Transactional
     @Query(value = "UPDATE tasks SET is_deleted = false WHERE id = :id", nativeQuery = true)
     void restoreById(@Param("id") UUID id);
+
+    // 3. Find task by ID including soft-deleted (Native Query ignores Hibernate filters)
+    @Query(value = "SELECT * FROM tasks WHERE id = :id", nativeQuery = true)
+    Task findByIdIncludingDeleted(@Param("id") UUID id);
 }
