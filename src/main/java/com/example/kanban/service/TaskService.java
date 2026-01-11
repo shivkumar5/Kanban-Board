@@ -77,7 +77,9 @@ public class TaskService {
                 .sprint(sprint)
                 .build();
 
-        return taskRepository.save(task);
+        Task savedTask = taskRepository.save(task);
+        eventPublisher.publishEvent(new TaskStatusEvent(savedTask.getId(), savedTask.getTitle(), "NONE", "TODO", user));
+        return savedTask;
     }
 
     // PUT: Full Update (Replacement)

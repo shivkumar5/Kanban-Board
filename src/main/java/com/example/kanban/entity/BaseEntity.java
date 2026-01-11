@@ -25,8 +25,4 @@ public abstract class BaseEntity {
     @JdbcTypeCode(SqlTypes.UUID)
     @Column(name ="id", updatable = false,nullable = false)
     private UUID id;
-
-    @Builder.Default
-    @Column(name = "is_deleted", nullable = false)
-    private Boolean isDeleted = false;
 }
