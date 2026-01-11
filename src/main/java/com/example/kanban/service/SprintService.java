@@ -6,9 +6,13 @@ import com.example.kanban.entity.User;
 import com.example.kanban.repository.SprintRepository;
 import com.example.kanban.repository.UserRepository;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 
 import java.util.Date;
+import java.util.UUID;
 
 @Service
 public class SprintService {
@@ -34,12 +38,28 @@ public class SprintService {
         return sprintRepository.findAll();
     }
 
-    public Sprint getSprintById(java.util.UUID sprintId) {
+    public Page<Sprint> getSprints(String name, UUID userId, Pageable pageable) {
+        Specification<Sprint> spec = (root, query, cb) -> cb.conjunction();
+
+        if (name != null && !name.trim().isEmpty()) {
+            spec = spec.and((root, query, cb) -> 
+                cb.like(cb.lower(root.get("name")), "%" + name.toLowerCase() + "%"));
+        }
+
+        if (userId != null) {
+            spec = spec.and((root, query, cb) -> 
+                cb.equal(root.get("user").get("id"), userId));
+        }
+
+        return sprintRepository.findAll(spec, pageable);
+    }
+
+    public Sprint getSprintById(UUID sprintId) {
         return sprintRepository.findById(sprintId)
                 .orElseThrow(() -> new RuntimeException("Sprint not found!"));
     }
 
-    public Sprint updateSprint(java.util.UUID sprintId, SprintDTO sprintDTO) {
+    public Sprint updateSprint(UUID sprintId, SprintDTO sprintDTO) {
         Sprint sprint = sprintRepository.findById(sprintId)
                 .orElseThrow(() -> new RuntimeException("Sprint not found!"));
         sprint.setName(sprintDTO.getName());
@@ -47,7 +67,7 @@ public class SprintService {
     }
     
 
-    public Sprint patchSprint(java.util.UUID sprintId, java.util.Map<String, Object> updates) {
+    public Sprint patchSprint(UUID sprintId, java.util.Map<String, Object> updates) {
         Sprint existingSprint = sprintRepository.findById(sprintId)
                 .orElseThrow(() -> new RuntimeException("Sprint not found!"));
 
@@ -60,6 +80,12 @@ public class SprintService {
         });
 
         return sprintRepository.save(existingSprint);
+    }
+
+    public void deleteSprint(UUID sprintId) {
+        Sprint sprint = sprintRepository.findById(sprintId)
+                .orElseThrow(() -> new RuntimeException("Sprint not found!"));
+        sprintRepository.delete(sprint);
     }
 
 }

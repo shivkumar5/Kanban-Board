@@ -161,6 +161,30 @@ public class TaskController {
     }
 
     @Operation(
+            summary = "Delete a task (soft delete)",
+            description = "Soft-deletes a task by setting the is_deleted flag. The task is moved to trash and can be restored later. " +
+                    "Soft-deleted tasks are not returned in normal queries but can be accessed via the /trash endpoint."
+    )
+    @ApiResponses(value = {
+            @ApiResponse(
+                    responseCode = "204",
+                    description = "Task deleted successfully (soft delete)"
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "Task not found",
+                    content = @Content
+            )
+    })
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> deleteTask(
+            @Parameter(description = "Task ID to delete", required = true, example = "f80c297d-9aa3-49c4-a636-307010e6f06c")
+            @PathVariable UUID id) {
+        taskService.deleteTask(id);
+        return ResponseEntity.noContent().build();
+    }
+
+    @Operation(
             summary = "Restore a soft-deleted task",
             description = "Restores a task that was previously soft-deleted, making it active again in the system."
     )

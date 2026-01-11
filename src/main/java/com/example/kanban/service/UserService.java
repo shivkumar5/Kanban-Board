@@ -2,8 +2,11 @@ package com.example.kanban.service;
 
 import com.example.kanban.dto.UserDTO;
 import com.example.kanban.repository.UserRepository;
-import  com.example.kanban.entity.User;
+import com.example.kanban.entity.User;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -56,5 +59,27 @@ public class UserService {
 
     public List<User> getAllUsers() {
         return userRepository.findAll();
+    }
+
+    public Page<User> getUsers(String name, String email, Pageable pageable) {
+        Specification<User> spec = (root, query, cb) -> cb.conjunction();
+
+        if (name != null && !name.trim().isEmpty()) {
+            spec = spec.and((root, query, cb) -> 
+                cb.like(cb.lower(root.get("name")), "%" + name.toLowerCase() + "%"));
+        }
+
+        if (email != null && !email.trim().isEmpty()) {
+            spec = spec.and((root, query, cb) -> 
+                cb.like(cb.lower(root.get("email")), "%" + email.toLowerCase() + "%"));
+        }
+
+        return userRepository.findAll(spec, pageable);
+    }
+
+    public void deleteUser(UUID userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found!"));
+        userRepository.delete(user);
     }
 }

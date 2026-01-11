@@ -15,6 +15,7 @@ import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
 
 import java.util.List;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/v1/status")
@@ -63,6 +64,87 @@ public class StatusController {
     @GetMapping
     public ResponseEntity<List<Status>> getAllStatus() {
         return ResponseEntity.ok(statusService.getAllStatus());
+    }
+
+    @Operation(
+            summary = "Get status by ID",
+            description = "Retrieves a single status by its unique identifier"
+    )
+    @ApiResponses(value = {
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Status retrieved successfully",
+                    content = @Content(schema = @Schema(implementation = Status.class))
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "Status not found",
+                    content = @Content
+            )
+    })
+    @GetMapping("/{statusId}")
+    public ResponseEntity<Status> getStatusById(
+            @Parameter(description = "Status ID", required = true, example = "e0fa2687-3c1d-4dc6-8217-718f8d11d9c2")
+            @PathVariable UUID statusId) {
+        return ResponseEntity.ok(statusService.getStatusById(statusId));
+    }
+
+    @Operation(
+            summary = "Update status",
+            description = "Updates an existing status. Since status only has a name field, this replaces the status name."
+    )
+    @ApiResponses(value = {
+            @ApiResponse(
+                    responseCode = "200",
+                    description = "Status updated successfully",
+                    content = @Content(schema = @Schema(implementation = Status.class))
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "Status not found",
+                    content = @Content
+            ),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "Invalid request data",
+                    content = @Content
+            )
+    })
+    @PutMapping("/{statusId}")
+    public ResponseEntity<Status> updateStatus(
+            @Parameter(description = "Status ID", required = true, example = "e0fa2687-3c1d-4dc6-8217-718f8d11d9c2")
+            @PathVariable UUID statusId,
+            @Parameter(description = "Status data with name to update", required = true)
+            @RequestBody StatusDTO statusDTO) {
+        return ResponseEntity.ok(statusService.updateStatus(statusId, statusDTO));
+    }
+
+    @Operation(
+            summary = "Delete status",
+            description = "Deletes a status from the system. Note: This may fail if there are tasks using this status."
+    )
+    @ApiResponses(value = {
+            @ApiResponse(
+                    responseCode = "204",
+                    description = "Status deleted successfully"
+            ),
+            @ApiResponse(
+                    responseCode = "404",
+                    description = "Status not found",
+                    content = @Content
+            ),
+            @ApiResponse(
+                    responseCode = "400",
+                    description = "Cannot delete status (may be in use by tasks)",
+                    content = @Content
+            )
+    })
+    @DeleteMapping("/{statusId}")
+    public ResponseEntity<Void> deleteStatus(
+            @Parameter(description = "Status ID", required = true, example = "e0fa2687-3c1d-4dc6-8217-718f8d11d9c2")
+            @PathVariable UUID statusId) {
+        statusService.deleteStatus(statusId);
+        return ResponseEntity.noContent().build();
     }
 
 }
