@@ -5,6 +5,7 @@ import com.example.kanban.entity.Sprint;
 import com.example.kanban.entity.Status;
 import com.example.kanban.entity.Task;
 import com.example.kanban.entity.User;
+import com.example.kanban.event.TaskStatusEvent;
 import com.example.kanban.repository.SprintRepository;
 import com.example.kanban.repository.StatusRepository;
 import com.example.kanban.repository.TaskRepository;
@@ -12,6 +13,7 @@ import com.example.kanban.repository.UserRepository;
 import com.example.kanban.service.validation.TaskValidator;
 
 import jakarta.persistence.EntityNotFoundException;
+import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -19,6 +21,7 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
+import org.springframework.context.ApplicationEventPublisher;
 
 import java.util.List;
 import java.util.Map;
@@ -35,6 +38,7 @@ public class TaskService {
     private final StatusRepository statusRepository;
     private final TaskValidator taskValidator;
     private final ObjectMapper objectMapper;
+    private final ApplicationEventPublisher eventPublisher;
 
     public Task createTask(TaskDTO taskDTO) {
         // 1. Validate and fetch entities first
@@ -94,6 +98,7 @@ public class TaskService {
     }
 
     // PATCH: Partial Update (Selective)
+    @Transactional
     public Task patchTask(UUID taskId, Map<String, Object> updates) {
         // 1. Find the existing record
         Task existingTask = taskRepository.findById(taskId)
@@ -129,7 +134,19 @@ public class TaskService {
 
         // 6. Validate and save
         taskValidator.validate(updatedTask);
-        return taskRepository.save(updatedTask);
+
+        Task savedTask = taskRepository.save(updatedTask);
+        if(savedTask.getStatus() != null && !savedTask.getStatus().getName().equals(existingTask.getStatus().getName())) {
+           eventPublisher.publishEvent(new TaskStatusEvent(
+                savedTask.getId(),
+                existingTask.getStatus().getName(),   // oldStatus
+                savedTask.getStatus().getName(),     // newStatus
+                savedTask.getTitle(),                // taskTitle
+                savedTask.getUser()                  // updatedBy
+        ));
+        }
+
+        return savedTask;
     }
 
     public Page<Task> getTasks(String title, UUID statusId, Pageable pageable) {
